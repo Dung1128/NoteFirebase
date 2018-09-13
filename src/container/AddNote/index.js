@@ -21,8 +21,8 @@ export default class AddNote extends React.PureComponent {
   constructor(props) {
     super(props);
     this.state = {
-      name: this.props.getNote.data.name,
-      value: this.props.getNote.data.value
+      name: this.props.getActionUpdate ? this.props.getNote.data.name : '',
+      value: this.props.getActionUpdate ? this.props.getNote.data.value : ''
     };
     this.database = firebaseApp.database();
     this.Note = this.database.ref('note').child('dataNote');
@@ -49,8 +49,8 @@ export default class AddNote extends React.PureComponent {
 
     this.setState({
       name: '',
-      value:''
-    })
+      value: ''
+    });
   }
 
   _edit() {

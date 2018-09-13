@@ -30,5 +30,9 @@ export default {
     paddingTop: 0,
     paddingBottom: 0,
     marginTop: 5
+  },
+  footerList: {
+    paddingVertical: 0,
+    marginBottom: 30
   }
 };

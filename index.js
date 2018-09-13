@@ -45,9 +45,9 @@ class Root extends React.Component {
     }
     return (
       <Provider store={this.store}>
-        <SafeView>
+        {/* <SafeView> */}
           <App />
-        </SafeView>
+        {/* </SafeView> */}
       </Provider>
     );
   }
@@ -56,7 +56,7 @@ class Root extends React.Component {
 const styles = {
   safeArea: {
     flex: 1,
-    backgroundColor: material.safeAreaBackground
+    // backgroundColor: material.safeAreaBackground
   }
 };
 console.disableYellowBox = true;

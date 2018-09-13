@@ -9,7 +9,8 @@ import {
   Platform,
   TouchableOpacity,
   RefreshControl,
-  ListView
+  ListView,
+  Alert
 } from 'react-native';
 import _ from 'lodash';
 import {
@@ -42,7 +43,6 @@ import styles from './styles';
 export default class extends React.Component {
   constructor(props) {
     super(props);
-
     this.state = {
       loading: false,
       hasMore: true,
@@ -50,31 +50,43 @@ export default class extends React.Component {
       start: 0,
       dataSource: [],
       loadingSpiner: false,
-      active: true
+      active: true,
+      flat: null,
+      endPage: false
     };
     this.database = firebaseApp.database();
-    this.Note = this.database.ref('note').child('dataNote');
+
+    this.offset = 1;
+    this.isMoving = false;
   }
 
   componentDidMount() {
-    // this.database.ref('note').on('value', snap => {
-    //   let items = [];
-    //   snap.forEach(data => {
-    //     items.push({
-    //       key: data.key,
-    //       data: data.val()
-    //     });
-    //   });
+    this.getList();
+  }
 
-    //   this.setState({
-    //     dataSource: items
-    //   });
-    // });
+  getList() {
+    console.log('this.state.flat', this.state.flat);
+    this.state.flat
+      ? (this.Note = this.database
+          .ref('note')
+          .child('dataNote')
+          .orderByKey()
+          .endAt(this.state.flat.toString())
+          .limitToLast(8))
+      : (this.Note = this.database
+          .ref('note')
+          .child('dataNote')
+          .orderByKey()
+          .limitToLast(8));
 
-    this.database
-      .ref('note')
-      .child('dataNote')
-      .on('value', dataSnapshot => {
+    // this.Note = this.database
+    //   .ref('note')
+    //   .child('dataNote')
+    //   .orderByKey()
+    //   .limitToFirst(8);
+
+    !this.state.endPage &&
+      this.Note.on('value', dataSnapshot => {
         let items = [];
         dataSnapshot.forEach(data => {
           items.push({
@@ -82,9 +94,29 @@ export default class extends React.Component {
             data: data.val()
           });
         });
-        this.setState({
-          dataSource: _.reverse(items)
-        });
+
+        this.setState(
+          {
+            loadingMore: false,
+            flat: items.length > 0 && items[0].key
+          },
+          () => {
+            // items.pop();
+            console.log(items.length);
+
+            items.length > 7
+              ? items.reverse().pop()
+              : this.setState({ endPage: true });
+            items.length < 7 && items.reverse();
+
+            this.setState(
+              {
+                dataSource: [...this.state.dataSource, ...items]
+              },
+              () => console.log('this.state.dataSource', this.state.dataSource)
+            );
+          }
+        );
       });
   }
 
@@ -128,7 +160,41 @@ export default class extends React.Component {
   }
 
   deleteRow(data) {
-    this.Note.child(data.key).remove();
+    Alert.alert('Notifications', 'Do you want delete note?', [
+      {
+        text: 'No',
+        onPress: () => console.log('no')
+      },
+      {
+        text: 'Yes',
+        onPress: () => this.Note.child(data.key).remove()
+      }
+    ]);
+  }
+
+  refreshList() {
+    this.setState(
+      {
+        isRefreshing: false,
+        start: 0
+      },
+      () => this.getList()
+    );
+  }
+
+  renderFooter() {
+    if (this.state.loadingMore) {
+      return (
+        // <View style={styles.footerList}>
+        <Spinner size="small" color={material.primaryColor} />
+        // </View>
+      );
+    }
+    return <View style={{ paddingVertical: 0 }} />;
+  }
+
+  onEndReached() {
+    this.setState({ loadingMore: true }, () => this.getList());
   }
 
   render() {
@@ -137,7 +203,6 @@ export default class extends React.Component {
       return <Preload />;
     }
 
-    console.log(moment(new Date()).format('YYYY-MM-DD HH:mm:ss'));
     return (
       <Container style={styles.container}>
         {this.state.dataSource.length !== 0 && (
@@ -146,6 +211,25 @@ export default class extends React.Component {
             data={this.state.dataSource}
             keyExtractor={(item, index) => index + '.'}
             renderItem={({ item }) => this.renderItem(item)}
+            // load
+            onEndReached={() => this.onEndReached()}
+            onEndReachedThreshold={material.platform === 'ios' ? 0 : 1}
+            onMomentumScrollBegin={() => {
+              this.isMoving = true;
+              this.onEndReachedCalledDuringMomentum = false;
+              this.setState({ loadingMore: false });
+            }}
+            onMomentumScrollEnd={() => (this.isMoving = false)}
+            shouldRasterizeIOS={this.isMoving}
+            renderToHardwareTextureAndroid={this.isMoving}
+            ListFooterComponent={this.renderFooter.bind(this)}
+            refreshControl={
+              <RefreshControl
+                tintColor={material.primaryColor}
+                refreshing={this.state.isRefreshing}
+                onRefresh={this.refreshList.bind(this)}
+              />
+            }
           />
         )}
 
